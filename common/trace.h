@@ -8,12 +8,14 @@
  * @date 2025-03-24
  * @copyright Copyright (c) 2025
  */
-#ifndef _TRACE_
-#define _TRACE_
+#ifndef _TRACE_H_
+#define _TRACE_H_
 
+#ifdef USE_TRACE
 #include <stdio.h>
 #include <stdlib.h>
 
+// defined in trace.c
 extern int trace_depth;
 
 #define TRACE(...) \
@@ -36,24 +38,15 @@ extern int trace_depth;
         return(__VA_ARGS__); \
     } while(0)
 
-#define SEPARATOR printf("------------------------\n");
+#define SEPARATOR printf("------------------------\n")
 
-#define ASSERT(expr, ...)                                                                                 \
-    do {                                                                                                  \
-        if(!(expr)) {                                                                                     \
-            fprintf(stderr, "%s: %s: %d: assertion failed: (%s): ", __FILE__, __func__, __LINE__, #expr); \
-            fprintf(stderr, __VA_ARGS__);                                                                 \
-            fputc('\n', stderr);                                                                          \
-            abort();                                                                                      \
-        }                                                                                                 \
-    } while(0)
+#else
 
-#define FATAL(...)                                                                  \
-    do {                                                                            \
-        fprintf(stderr, "fatal error: %s: %s: %d: ", __FILE__, __func__, __LINE__); \
-        fprintf(stderr, __VA_ARGS__);                                               \
-        fputc('\n', stderr);                                                        \
-        exit(1);                                                                    \
-    } while(0)
+#define TRACE(...)
+#define ENTER
+#define RETURN(...) do { return(__VA_ARGS__); } while(0)
+#define SEPARATOR
 
-#endif /* _TRACE_ */
+#endif
+
+#endif /* _TRACE_H_ */

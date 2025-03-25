@@ -10,8 +10,9 @@ import time
 import os
 import sys
 
-terminals = []
+tokens = []
 non_terminals = []
+terminals = []
 keywords = {}
 translate = []
 rules = {}
@@ -69,23 +70,26 @@ def gen_lists(fname):
                 for mat in res:
                     if re.match(r"[a-z]+", mat):
                         s = "TOK_%s"%(mat.upper())
-                        if not s in terminals:
-                            terminals.append(s)
+                        if not s in tokens:
+                            tokens.append(s)
                             keywords[s] = mat
                             translate.append("(type == %s)? \"%s\" :"%(s, mat))
                     else:
                         #print(mat)
                         s = convert(mat)
-                        if not s in terminals:
-                            terminals.append(s)
+                        if not s in tokens:
+                            tokens.append(s)
                             translate.append("(type == %s)? \"%s\" :"%(s, mat))
+
+                    if not mat in terminals:
+                        terminals.append(mat)
 
                 res = re.findall(r"([A-Z_]+)", line)
                 for mat in res:
                     if mat != "_":
                         s = "TOK_"+mat
-                        if not s in terminals:
-                            terminals.append(s)
+                        if not s in tokens:
+                            tokens.append(s)
                             translate.append("(type == %s)? \"%s\" :"%(s, mat))
             elif line[0] == ';':
                 #print("end:", line)
@@ -100,6 +104,10 @@ def gen_lists(fname):
                 else:
                     print("duplicate non terminal symbol is illegal")
                     exit(1)
+
+    terminals.sort()
+    non_terminals.sort()
+    tokens.sort()
 
 def gen_ast():
 
@@ -122,7 +130,6 @@ def gen_ast():
 
         for str in rules:
             fp.write("/**\n")
-            #fp.write(" * Grammar production:\n *\n * %s\n"%(str))
             fp.write(" * %s\n"%(str))
             for s in rules[str]:
                 fp.write(" * %s\n"%(s))
@@ -131,11 +138,6 @@ def gen_ast():
             fp.write("    ast_node_t node;\n\n")
             fp.write("} ast_%s_t;\n\n"%(str))
 
-        # fp.write("#define CALL_NODE_FUNC(f) do { \\\n")
-        # fp.write("        if((f) != NULL) { \\\n")
-        # fp.write("            (*f)((ast_node_t*)node); \\\n")
-        # fp.write("        }\\\n")
-        # fp.write("    } while(0)\n\n")
         for str in rules:
             fp.write("void traverse_%s(ast_%s_t* node);\n"%(str, str))
 
@@ -149,9 +151,6 @@ def gen_ast():
             fp.write(" * @brief AST implementation.\n")
             fp.write(" * This file was generated on %s.\n"%(time.asctime()))
             fp.write(" *\n */\n")
-            #fp.write("#include \"common.h\"\n")
-            # fp.write("#include \"ast_trace.h\"\n")
-            # fp.write("#include \"ast_errors.h\"\n")
             fp.write("#include <stddef.h>\n\n")
 
             fp.write("#include \"ast.h\"\n\n")
@@ -177,9 +176,6 @@ def gen_ast():
             fp.write(" * @brief Traverse AST for node %s.\n"%(str))
             fp.write(" * This file was generated on %s.\n"%(time.asctime()))
             fp.write(" *\n */\n")
-            #fp.write("#include \"common.h\"\n")
-            # fp.write("#include \"ast_trace.h\"\n")
-            # fp.write("#include \"ast_errors.h\"\n")
             fp.write("#include \"ast.h\"\n")
             fp.write("#include \"trace.h\"\n\n")
             fp.write("/**\n *\n")
@@ -189,8 +185,6 @@ def gen_ast():
             fp.write(" */\n")
             fp.write("void traverse_%s(ast_%s_t* node) {\n\n"%(str, str))
             fp.write("    ENTER;\n")
-            # fp.write("    CALL_NODE_FUNC(pre);\n\n")
-            # fp.write("    CALL_NODE_FUNC(post);\n")
             fp.write("    RETURN();\n")
             fp.write("}\n\n")
 
@@ -306,9 +300,9 @@ def gen_parse():
             fp.write("    RETURN(node);\n")
             fp.write("}\n\n")
 
-def gen_token_defs():
+def gen_scanner():
 
-    with open("tokens/tokens.h", "w") as fp:
+    with open("scanner/tokens.h", "w") as fp:
         fp.write("/**\n *\n")
         fp.write(" * @file token_defs.h\n *\n")
         fp.write(" * @brief Token definitions public interface.\n")
@@ -320,7 +314,7 @@ def gen_token_defs():
         fp.write("#include <stdint.h>\n\n")
 
         fp.write("typedef enum {\n")
-        for item in terminals:
+        for item in tokens:
             fp.write("    %s,\n"%(item))
 
         fp.write("\n    TOK_END_OF_INPUT,\n")
@@ -356,7 +350,7 @@ def gen_token_defs():
 
         fp.write("#endif /* _TOKEN_DEFS_H_ */\n\n")
 
-    with open("tokens/tokens.c", "w") as fp:
+    with open("scanner/tokens.c", "w") as fp:
         fp.write("/**\n *\n")
         fp.write(" * @file token_defs.c\n *\n")
         fp.write(" * @brief Token definition implementation.\n")
@@ -420,24 +414,25 @@ token_t* advance_token(void) {
         fp.write("        \"UNKNOWN\";\n")
         fp.write("}\n\n")
 
-def installer() :
-    os.system("mkdir parser ast tokens")
+def generate() :
+
+    if not os.path.isdir('ast'):
+        os.mkdir('ast')
+    if not os.path.isdir('parser'):
+        os.mkdir('parser')
+    if not os.path.isdir('scanner'):
+        os.mkdir('scanner')
 
     gen_ast()
     gen_parse()
-    gen_token_defs()
-
-    #os.system("mv -f parser/*.c parser/*.h ../../src/parser/")
-    #os.system("mv -f ast/*.c ast/*.h ../../src/ast/")
-    #os.system("mv -f tokens/*.c tokens/*.h ../../src/tokens/")
-    #os.system("rm -rf parser ast tokens")
+    gen_scanner()
 
 
 if __name__ == '__main__':
 
-    print("Before you run this, know that it will destroy the parser")
-    print("and all of the manual changes that were made to it.")
-    #exit(1)
+    # print("Before you run this, know that it will destroy the parser")
+    # print("and all of the manual changes that were made to it.")
+    # exit(1)
 
     if(len(sys.argv) < 2) :
         sys.stderr.write("%s: file name required\n"%(sys.argv[0]))
@@ -445,8 +440,28 @@ if __name__ == '__main__':
 
     gen_lists(sys.argv[1])
 
+    count = 0
     with open("non-terminals.txt", "w") as fp:
         for item in non_terminals:
             fp.write("%s\n"%(item))
+            count += 1
 
-    installer()
+    print("non-terminals:", count)
+
+    count = 0
+    with open("keywords.txt", "w") as fp:
+        for item in keywords:
+            fp.write("%s\n"%(item))
+            count += 1
+
+    print("keywords:", count)
+
+    count = 0
+    with open("tokens.txt", "w") as fp:
+        for item in tokens:
+            fp.write("%s\n"%(item))
+            count += 1
+
+    print("tokens:", count)
+
+    generate()
