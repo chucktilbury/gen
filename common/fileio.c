@@ -24,9 +24,21 @@ void open_file(const char* fname) {
     if(file_stack != NULL)
         ptr->next = file_stack;
     file_stack = ptr;
+
+    advance_char();
 }
 
 int get_char(void) {
+
+    int ch = EOF;
+
+    if(file_stack != NULL)
+        ch = file_stack->ch;
+
+    return ch;
+}
+
+int advance_char(void) {
 
     if(file_stack != NULL) {
         int ch = fgetc(file_stack->fp);
@@ -51,6 +63,7 @@ int get_char(void) {
         else
             file_stack->col_no++;
 
+        file_stack->ch = ch;
         return ch;
 
     }

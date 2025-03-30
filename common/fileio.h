@@ -9,10 +9,12 @@ typedef struct _file_info_t_ {
     size_t line_no;
     size_t col_no;
     struct _file_info_t_* next;
+    int ch;
 } file_info_t;
 
 void open_file(const char* fname);
 int get_char(void);
+int advance_char(void);
 int get_line_no(void);
 int get_col_no(void);
 const char* get_fname(void);
