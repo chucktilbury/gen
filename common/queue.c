@@ -1,5 +1,5 @@
 
-#include "mem.h"
+#include "alloc.h"
 #include "queue.h"
 
 queue_t* create_queue(void) {
@@ -42,10 +42,12 @@ void* consume_queue(queue_t* que) {
 
 void* advance_queue(queue_t* que) {
 
-    if(que->crnt->next != NULL)
+    if(que->crnt->next != NULL) {
         que->crnt = que->crnt->next;
-
-    return que->crnt->data;
+        return que->crnt->data;
+    }
+    else
+        return NULL;
 }
 
 void* peek_queue(queue_t* que) {

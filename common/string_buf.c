@@ -13,7 +13,7 @@
 #include <stdarg.h>
 #include <ctype.h>
 
-#include "mem.h"
+#include "alloc.h"
 #include "string_buf.h"
 
 string_buf_t* create_string_buf(const char* str) {
@@ -47,6 +47,16 @@ string_buf_t* create_string_buf_fmt(const char* fmt, ...) {
     _FREE(str);
 
     return buf;
+}
+
+void destroy_string_buf(string_buf_t* buf) {
+
+    if(buf != NULL) {
+        if(buf->buffer != NULL)
+            _FREE(buf->buffer);
+
+        _FREE(buf);
+    }
 }
 
 void append_string_buf(string_buf_t* buf, const char* str) {

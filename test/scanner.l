@@ -3,7 +3,7 @@
  * @file scanner.l
  *
  * @brief Scanner template.
- * This file was generated on Sun Mar 30 23:32:20 2025.
+ * This file was generated on Mon Mar 31 11:23:05 2025.
  *
  */
 
@@ -12,9 +12,9 @@
 #include <string.h>
 #include <errno.h>
 
-#include "../common/errors.h"
+#include "errors.h"
 #include "tokens.h"
-#include "../common/mem.h"
+#include "alloc.h"
 
 int yycolumn = 1;
 
@@ -380,8 +380,8 @@ static file_info_t* end_file = NULL;
 }
 
 [a-zA-Z_][a-zA-Z0-9_]* {
-    add_token_queue(create_token(yytext, TOK_IDENT));
-    return TOK_IDENT;
+    add_token_queue(create_token(yytext, TOK_IDENTIFIER));
+    return TOK_IDENTIFIER;
 }
 
 \"[^\"\n]*\"|\'[^\'\n]*\' {

@@ -336,7 +336,8 @@ def gen_scanner():
         fp.write("#ifndef _TOKEN_DEFS_H_\n")
         fp.write("#define _TOKEN_DEFS_H_\n\n")
 
-        fp.write("#include <stdint.h>\n\n")
+        fp.write("#include <stdint.h>\n")
+        fp.write("#include \"string_buf.h\"\n\n")
 
         token_num = 256
         fp.write("typedef enum {\n")
@@ -356,8 +357,8 @@ def gen_scanner():
 '''
 typedef struct _token_t_ {
     token_type_t type;
-    const char* raw;
-    const char* fname;
+    string_buf_t* raw;
+    string_buf_t* fname;
     int line_no;
     int col_no;
     union {
@@ -377,6 +378,7 @@ void consume_token_queue(void);
 void add_token_queue(token_t* tok);
 
 token_t* create_token(const char* str, token_type_t type);
+void destroy_token(token_t* tok);
 token_t* get_token(void);
 token_t* advance_token(void);
 const char* token_type_to_str(token_type_t type);
@@ -387,8 +389,8 @@ const char* token_type_to_str(token_type_t type);
 
     with open("scanner/tokens.c", "w") as fp:
         fp.write("/**\n *\n")
-        fp.write(" * @file token_defs.c\n *\n")
-        fp.write(" * @brief Token definition implementation.\n")
+        fp.write(" * @file tokens.c\n *\n")
+        fp.write(" * @brief Token queue implementation.\n")
         fp.write(" * This file was generated on %s.\n"%(time.asctime()))
         fp.write(" *\n */\n")
         fp.write(
@@ -397,33 +399,96 @@ const char* token_type_to_str(token_type_t type);
 #include <stdio.h>
 #include <strings.h>
 
-#include "fileio.h"
 #include "tokens.h"
+#include "scanner.h"
+#include "queue.h"
+#include "fileio.h"
+#include "alloc.h"
+
+queue_t* token_queue = NULL;
 
 void init_token_queue(const char* fname) {
+
+    if(token_queue == NULL)
+        token_queue = _ALLOC_TYPE(queue_t);
+
+    open_file(fname);
+    yylex();
 }
 
 void* post_token_queue(void) {
+
+    return (void*)token_queue->crnt;
 }
 
 void reset_token_queue(void* post) {
+
+    token_queue->crnt = (queue_element_t*)post;
 }
 
 void consume_token_queue(void) {
+
+    queue_element_t* next;
+    for(queue_element_t* elem = token_queue->head; elem != token_queue->crnt; elem = next) {
+        next = elem->next;
+        destroy_token(elem->data);
+        _FREE(elem);
+    }
 }
 
 void add_token_queue(token_t* tok) {
-//printf("add token queue\\n");
+
+    add_queue(token_queue, (void*)tok);
 }
 
 token_t* create_token(const char* str, token_type_t type) {
-printf("%d:%d: create token: \\"%s\\" %s\\n", get_line_no(), get_col_no(), str, token_type_to_str(type));
+
+    token_t* tok = _ALLOC_TYPE(token_t);
+    tok->type = type;
+    tok->raw = create_string_buf(str);
+    tok->line_no = get_line_no();
+    tok->col_no = get_col_no();
+    tok->fname = create_string_buf(get_file_name());
+
+    return tok;
+}
+
+void destroy_token(token_t* tok) {
+
+    if(tok != NULL) {
+        if(tok->raw != NULL)
+            destroy_string_buf(tok->raw);
+        if(tok->fname != NULL)
+            destroy_string_buf(tok->fname);
+
+        _FREE(tok);
+    }
 }
 
 token_t* get_token(void) {
+
+    if(token_queue != NULL) {
+        return peek_queue(token_queue);
+    }
+    else
+        return NULL;
 }
 
 token_t* advance_token(void) {
+
+    token_t* tok = advance_queue(token_queue);
+    if(tok == NULL) {
+        tok = get_token();
+        if(tok->type != TOK_END_OF_INPUT) {
+            if(yylex() == 0)
+                add_token_queue(create_token("end of input", TOK_END_OF_INPUT));
+
+            token_queue->crnt = token_queue->tail;
+            tok = get_token();
+        }
+    }
+
+    return tok;
 }
 
 ''')
@@ -432,7 +497,9 @@ token_t* advance_token(void) {
         fp.write("%s\n"%(translate[0]))
         for item in translate[1:]:
             fp.write("        %s\n"%(item))
-        fp.write("        \"UNKNOWN\";\n")
+        fp.write("\n        (type == TOK_END_OF_INPUT)? \"END OF INPUT\" :\n")
+        fp.write("        (type == TOK_END_OF_FILE)? \"END OF FILE\" :\n")
+        fp.write("        (type == TOK_ERROR)? \"ERROR\" : \"UNKNOWN\";\n")
         fp.write("}\n\n")
 
     with open("scanner/scanner.l", "w") as fp:
@@ -448,9 +515,9 @@ token_t* advance_token(void) {
 #include <string.h>
 #include <errno.h>
 
-#include "../common/errors.h"
+#include "errors.h"
 #include "tokens.h"
-#include "../common/mem.h"
+#include "alloc.h"
 
 int yycolumn = 1;
 

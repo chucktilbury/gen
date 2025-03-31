@@ -11,6 +11,7 @@ typedef struct _string_buf_t_ {
 
 string_buf_t* create_string_buf(const char* str);
 string_buf_t* create_string_buf_fmt(const char* fmt, ...);
+void destroy_string_buf(string_buf_t* buf);
 void append_string_buf(string_buf_t* buf, const char* str);
 void append_string_buf_fmt(string_buf_t* buf, const char* fmt, ...);
 void append_string_buf_char(string_buf_t* buf, int ch);

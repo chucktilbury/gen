@@ -3,19 +3,20 @@
  * @file token_defs.h
  *
  * @brief Token definitions public interface.
- * This file was generated on Sun Mar 30 23:32:20 2025.
+ * This file was generated on Mon Mar 31 11:23:05 2025.
  *
  */
 #ifndef _TOKEN_DEFS_H_
 #define _TOKEN_DEFS_H_
 
 #include <stdint.h>
+#include "string_buf.h"
 
 typedef enum {
     TOK_START = 256,
     TOK_IMPORT = 257,
     TOK_AS = 258,
-    TOK_IDENT = 259,
+    TOK_IDENTIFIER = 259,
     TOK_INCLUDE = 260,
     TOK_PRIVATE = 261,
     TOK_PUBLIC = 262,
@@ -93,8 +94,8 @@ typedef enum {
 
 typedef struct _token_t_ {
     token_type_t type;
-    const char* raw;
-    const char* fname;
+    string_buf_t* raw;
+    string_buf_t* fname;
     int line_no;
     int col_no;
     union {
@@ -114,6 +115,7 @@ void consume_token_queue(void);
 void add_token_queue(token_t* tok);
 
 token_t* create_token(const char* str, token_type_t type);
+void destroy_token(token_t* tok);
 token_t* get_token(void);
 token_t* advance_token(void);
 const char* token_type_to_str(token_type_t type);
