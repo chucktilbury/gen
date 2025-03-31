@@ -16,5 +16,9 @@ void append_string_buf_fmt(string_buf_t* buf, const char* fmt, ...);
 void append_string_buf_char(string_buf_t* buf, int ch);
 const char* raw_string_buf(string_buf_t* buf);
 int len_string_buf(string_buf_t* buf);
+int comp_string_buf(string_buf_t* buf1, string_buf_t* buf2);
+
+void strip_quotes(string_buf_t* buf);
+void strip_space(string_buf_t* buf);
 
 #endif /* _STRING_BUF_H_ */

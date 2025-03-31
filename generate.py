@@ -56,6 +56,11 @@ def convert(str):
     return s
 
 def get_srule(fp, name):
+    tok = "TOK_"+name.upper()
+    if not tok in tokens:
+        tokens.append(tok)
+        translate.append("(type == %s)? \"%s\" :"%(tok, name.upper()))
+
     srules[name] = []
     for line in fp:
         line = line.strip()
@@ -101,7 +106,7 @@ def get_grule(fp, name):
                         translate.append("(type == %s)? \"%s\" :"%(s, mat))
 
         elif line[0] == ';':
-            grules[name].append("    ;\n")
+            grules[name].append("    ;")
             break
 
 def gen_lists(fname):
@@ -333,42 +338,52 @@ def gen_scanner():
 
         fp.write("#include <stdint.h>\n\n")
 
+        token_num = 256
         fp.write("typedef enum {\n")
         for item in tokens:
-            fp.write("    %s,\n"%(item))
+            fp.write("    %s = %d,\n"%(item, token_num))
+            token_num += 1
 
-        fp.write("\n    TOK_END_OF_INPUT,\n")
-        fp.write("    TOK_END_OF_FILE,\n")
-        fp.write("    TOK_ERROR,\n")
+        fp.write("\n    TOK_END_OF_INPUT = %d,\n"%(token_num))
+        token_num += 1
+        fp.write("    TOK_END_OF_FILE = %d,\n"%(token_num))
+        token_num += 1
+        fp.write("    TOK_ERROR = %d,\n"%(token_num))
+        token_num += 1
         fp.write("} token_type_t;\n\n")
 
-        fp.write("typedef struct _token_t_ {\n")
-        fp.write("    token_type_t type;\n")
-        fp.write("    const char* raw;\n")
-        fp.write("    const char* fname;\n")
-        fp.write("    int line_no;\n")
-        fp.write("    int col_no;\n")
-        fp.write("    union {\n")
-        fp.write("        int64_t count;\n")
-        fp.write("        double real;\n")
-        fp.write("        unsigned char boolean;\n")
-        fp.write("        const char* text;\n")
-        fp.write("        void* other;\n")
-        fp.write("    } value;\n")
-        fp.write("    struct _token_t_* next;\n")
-        fp.write("} token_t;\n\n")
+        fp.write(
+'''
+typedef struct _token_t_ {
+    token_type_t type;
+    const char* raw;
+    const char* fname;
+    int line_no;
+    int col_no;
+    union {
+        int64_t count;
+        double real;
+        unsigned char boolean;
+        const char* text;
+        void* other;
+    } value;
+    struct _token_t_* next;
+} token_t;
 
-        fp.write("void init_token_queue(const char* fname);\n")
-        fp.write("void* post_token_queue(void);\n")
-        fp.write("void reset_token_queue(void* post);\n")
-        fp.write("void consume_token_queue(void);\n\n")
+void init_token_queue(const char* fname);
+void* post_token_queue(void);
+void reset_token_queue(void* post);
+void consume_token_queue(void);
+void add_token_queue(token_t* tok);
 
-        fp.write("token_t* create_token(const char* str, token_type_t type);\n")
-        fp.write("token_t* get_token(void);\n")
-        fp.write("token_t* advance_token(void);\n")
-        fp.write("const char* token_type_to_str(token_type_t type);\n\n")
+token_t* create_token(const char* str, token_type_t type);
+token_t* get_token(void);
+token_t* advance_token(void);
+const char* token_type_to_str(token_type_t type);
 
-        fp.write("#endif /* _TOKEN_DEFS_H_ */\n\n")
+#endif /* _TOKEN_DEFS_H_ */
+
+''')
 
     with open("scanner/tokens.c", "w") as fp:
         fp.write("/**\n *\n")
@@ -376,10 +391,42 @@ def gen_scanner():
         fp.write(" * @brief Token definition implementation.\n")
         fp.write(" * This file was generated on %s.\n"%(time.asctime()))
         fp.write(" *\n */\n")
-        fp.write("#include <stdio.h>\n")
-        fp.write("#include <strings.h>\n\n")
-        fp.write("#include \"tokens.h\"\n")
+        fp.write(
+'''
 
+#include <stdio.h>
+#include <strings.h>
+
+#include "fileio.h"
+#include "tokens.h"
+
+void init_token_queue(const char* fname) {
+}
+
+void* post_token_queue(void) {
+}
+
+void reset_token_queue(void* post) {
+}
+
+void consume_token_queue(void) {
+}
+
+void add_token_queue(token_t* tok) {
+//printf("add token queue\\n");
+}
+
+token_t* create_token(const char* str, token_type_t type) {
+printf("%d:%d: create token: \\"%s\\" %s\\n", get_line_no(), get_col_no(), str, token_type_to_str(type));
+}
+
+token_t* get_token(void) {
+}
+
+token_t* advance_token(void) {
+}
+
+''')
         fp.write("const char* token_type_to_str(token_type_t type) {\n\n")
         fp.write("    return ")
         fp.write("%s\n"%(translate[0]))
@@ -387,6 +434,171 @@ def gen_scanner():
             fp.write("        %s\n"%(item))
         fp.write("        \"UNKNOWN\";\n")
         fp.write("}\n\n")
+
+    with open("scanner/scanner.l", "w") as fp:
+        fp.write("/**\n *\n")
+        fp.write(" * @file scanner.l\n *\n")
+        fp.write(" * @brief Scanner template.\n")
+        fp.write(" * This file was generated on %s.\n"%(time.asctime()))
+        fp.write(" *\n */\n")
+        fp.write(
+'''
+%{
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+
+#include "../common/errors.h"
+#include "tokens.h"
+#include "../common/mem.h"
+
+int yycolumn = 1;
+
+typedef struct _file_info_t_ {
+    const char* fname;
+    FILE* fp;
+    size_t line_no;
+    size_t col_no;
+    YY_BUFFER_STATE buffer;
+    struct _file_info_t_* next;
+} file_info_t;
+
+static file_info_t* file_stack = NULL;
+static file_info_t* end_file = NULL;
+
+#define YY_USER_ACTION \\
+  file_stack->col_no = yycolumn; \\
+  file_stack->line_no = yylineno; \\
+  if (yylineno == prev_yylineno) \\
+    yycolumn += yyleng; \\
+  else { \\
+    for (yycolumn = 1; yytext[yyleng - yycolumn] != '\\n'; ++yycolumn) {} \\
+    prev_yylineno = yylineno; \\
+  }
+
+%}
+
+%option yylineno
+%option noinput
+%option nounput
+%option noyywrap
+%option header-file="scanner.h"
+%option outfile="scanner.c"
+
+%%
+
+   // int start_line, start_column;
+   int prev_yylineno = yylineno;
+
+''')
+        # implicit scanner rules
+        for item in terminals:
+            if re.match(r'[a-z_A-Z]+', item):
+                tok = "TOK_"+item.upper()
+            else:
+                tok = convert(item)
+            fp.write("\"%s\" {\n    add_token_queue(create_token(yytext, %s));\n    return %s;\n}\n\n"%(item, tok, tok))
+
+        # explicit scanner rules
+        for item in srules:
+            l = len(srules[item])
+            for i, x in enumerate(srules[item]):
+                fp.write("%s"%(x))
+                if i+1 < l:
+                    fp.write("|")
+
+            tok = "TOK_"+item
+            fp.write(" {\n    add_token_queue(create_token(yytext, %s));\n    return %s;\n}\n\n"%(tok, tok))
+
+        fp.write(
+'''
+[ \\t\\r\\n\\v\\f]+ { /* ignore spaces */ }
+
+. { return yytext[0]; }
+
+<<EOF>> {
+
+    if(file_stack == NULL) {
+        yyterminate();
+        return 0;
+    }
+
+    file_info_t* fs = file_stack;
+    yy_delete_buffer(fs->buffer);
+    file_stack = file_stack->next;
+
+    fclose(fs->fp);
+
+    if(file_stack != NULL) {
+        yy_switch_to_buffer(file_stack->buffer);
+        _FREE(fs->fname);
+        _FREE(fs);
+    }
+    else {
+        end_file = fs;
+        yyterminate();
+    }
+}
+
+%%
+
+void open_file(const char* fn) {
+
+    const char *fname = fn; //find_file(fn);
+    yyin = fopen(fname, "r");
+    if(yyin == NULL)
+        FATAL("cannot open input file: \\"%s\\": %s\\n", fname, strerror(errno));
+
+    file_info_t* fs = _ALLOC_TYPE(file_info_t);
+    fs->fname = fname;
+    fs->next = NULL;
+    fs->line_no = 1;
+    fs->col_no = 1;
+
+    fs->fp = yyin;
+    fs->buffer = yy_create_buffer(yyin, YY_BUF_SIZE);
+    yy_switch_to_buffer(fs->buffer);
+
+    if(file_stack != NULL) {
+        fs->next = file_stack;
+        file_stack = fs;
+    }
+    else
+        file_stack = fs;
+
+}
+
+int get_line_no(void) {
+
+    if(file_stack != NULL)
+        return file_stack->line_no;
+    else if(end_file != NULL)
+        return end_file->line_no;
+    else
+        return -1; // no file has ever been open
+}
+
+int get_col_no(void) {
+
+    if(file_stack != NULL)
+        return file_stack->col_no;
+    else if(end_file != NULL)
+        return end_file->col_no;
+    else
+        return -1;
+}
+
+const char* get_file_name(void) {
+
+    if(file_stack != NULL)
+        return file_stack->fname;
+    else if(end_file != NULL)
+        return end_file->fname;
+    else
+        return NULL;
+}
+
+''')
 
 def generate() :
 

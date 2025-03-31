@@ -55,6 +55,8 @@ const char* strip_quotes(const char* str) {
 %option noinput
 %option nounput
 %option noyywrap
+%option header-file="scanner.h"
+%option outfile="scanner.c"
 
 %%
 

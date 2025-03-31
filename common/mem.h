@@ -1,3 +1,13 @@
+/**
+ * @file mem.h
+ *
+ * @brief
+ *
+ * @author Chuck Tilbury (chucktilbury@gmail.com)
+ * @version 0.1
+ * @date 2025-03-25
+ * @copyright Copyright (c) 2025
+ */
 #ifndef _MEM_H_
 #define _MEM_H_
 
@@ -5,13 +15,12 @@
 
 #define _ALLOC(s) _mem_alloc(s)
 #define _ALLOC_TYPE(t) (t*)_mem_alloc(sizeof(t))
-#define _ALLOC_ARRAY(t, n) (t*)_mem_alloc(sizeof(t) * (n))
+#define _ALLOC_ARRAY(t, n) (t*)_mem_alloc(sizeof(t)*(n))
 #define _REALLOC(p, s) _mem_realloc((void*)(p), (s))
-#define _REALLOC_TYPE(p, t, s) (t*)_mem_realloc((void*)(p), (s))
-#define _REALLOC_ARRAY(p, t, n) (t*)_mem_realloc((void*)(p), sizeof(t) * (n))
+#define _REALLOC_ARRAY(p, t, n) (t*)_mem_realloc((void*)(p), sizeof(t)*(n))
 #define _COPY(p, s) _mem_copy((void*)(p), (s))
 #define _COPY_TYPE(p, t) (t*)_mem_copy((void*)(p), sizeof(t))
-#define _COPY_ARRAY(p, t, n) (t*)_mem_copy((void*)(p), sizeof(t) * (n))
+#define _COPY_ARRAY(p, t, n) (t*)_mem_copy((void*)(p), sizeof(t)*(n))
 #define _COPY_STRING(s) _mem_copy_string(s)
 #define _FREE(p) _mem_free((void*)(p))
 
